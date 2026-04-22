@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-
-const API_BASE = import.meta.env.VITE_API_URL || ''
+import { storage } from '../api/storage'
 
 interface Message {
   role: 'user' | 'assistant'
@@ -9,96 +8,115 @@ interface Message {
 
 function AIAssistant() {
   const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: '你好！我是AI助手，可以帮你总结项目、文档，或者回答技术问题。有什么我可以帮你的吗？' }
+    { role: 'assistant', content: '你好！我是AI助手，可以帮你：\n• 总结项目经验\n• 优化简历描述\n• 预测面试问题\n• 提供职业建议\n\n有什么我可以帮你的吗？' }
   ])
   const [input, setInput] = useState('')
-  const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
-  // 滚动到底部
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const generateAIResponse = (userMessage: string) => {
+    const msg = userMessage.toLowerCase()
+    
+    if (msg.includes('项目') || msg.includes('总结')) {
+      const projects = storage.getProjects()
+      if (projects.length > 0) {
+        const summary = projects.map(p => 
+          `• ${p.title}: ${p.description} (${p.tech.join(', ')})`
+        ).join('\n')
+        return `📊 你的项目经验：\n\n${summary}\n\n💡 建议：可以突出项目的技术难点和业务价值，展示具体的成果指标。`
+      }
+      return '你还没有添加项目，可以在"项目作品"页面添加后，我帮你总结分析。'
+    }
+    
+    if (msg.includes('简历') || msg.includes('优化')) {
+      return `📝 简历优化建议：\n\n1. 使用 STAR 法则描述项目（情境、任务、行动、结果）\n2. 量化成果：如"性能提升 50%"、"用户增长 200%"\n3. 突出技术栈与岗位的匹配度\n4. 保持简洁，控制在 1-2 页\n\n需要我帮你优化具体的简历内容吗？`
+    }
+    
+    if (msg.includes('面试')) {
+      return `🎯 常见面试问题预测：\n\n**技术面：**\n• 自我介绍\n• 项目中最有挑战的部分\n• 技术选型的原因\n• 如何解决技术难题\n\n**HR面：**\n• 为什么离职\n• 职业规划\n• 期望薪资\n• 优势/劣势\n\n需要我模拟某个问题的回答吗？`
+    }
+    
+    if (msg.includes('职业') || msg.includes('发展')) {
+      return `🚀 职业发展建议：\n\n**技术路线：**\n• 深入专精某一领域（如前端/后端/架构）\n• 持续学习新技术，保持竞争力\n\n**管理路线：**\n• 提升沟通协调能力\n• 培养团队管理经验\n\n**趋势建议：**\n• AI/ML 技能越来越重要\n• 全栈能力是趋势\n• 开源贡献提升个人品牌\n\n有什么具体方向想深入聊吗？`
+    }
+    
+    return `收到你的问题：${userMessage}\n\n💡 提示：可以问我关于"项目总结"、"简历优化"、"面试准备"、"职业发展"等话题，我会给你专业建议！`
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
 
     const userMessage = input.trim()
     setInput('')
+    
+    // 添加用户消息
     setMessages(prev => [...prev, { role: 'user', content: userMessage }])
-    setLoading(true)
-
-    try {
-      const res = await fetch(`${API_BASE}/api/chat`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage })
-      })
-      const data = await res.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.response || '抱歉，我暂时无法回答这个问题。' }])
-    } catch {
-      setMessages(prev => [...prev, { 
-        role: 'assistant', 
-        content: '抱歉，AI服务暂时不可用。请确保后端服务器正在运行。' 
-      }])
-    } finally {
-      setLoading(false)
-    }
+    
+    // 模拟 AI 思考
+    setTimeout(() => {
+      const response = generateAIResponse(userMessage)
+      setMessages(prev => [...prev, { role: 'assistant', content: response }])
+    }, 500)
   }
 
   const quickActions = [
-    { label: '总结我的项目经验', prompt: '请总结一下我展示的项目经验，包括技术栈和项目特点' },
-    { label: '优化简历描述', prompt: '帮我优化简历中的项目描述，使其更具吸引力' },
-    { label: '面试问题预测', prompt: '根据我的技术栈，预测一下可能的面试问题' },
-    { label: '职业发展建议', prompt: '基于当前IT行业趋势，给我一些职业发展建议' }
+    { label: '📊 总结项目经验', prompt: '总结我的项目经验' },
+    { label: '📝 优化简历', prompt: '如何优化简历描述' },
+    { label: '🎯 面试预测', prompt: '预测可能的面试问题' },
+    { label: '🚀 职业建议', prompt: '给我职业发展建议' }
   ]
 
   return (
     <div className="container page">
-      <h1 style={{ marginBottom: '2rem' }}>🤖 AI 助手</h1>
+      <h1 style={{ marginBottom: '1.5rem' }}>🤖 AI 助手</h1>
       
-      <div style={{ marginBottom: '1.5rem' }}>
-        <h3 style={{ marginBottom: '1rem', color: 'var(--text-muted)' }}>快捷操作</h3>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-          {quickActions.map(action => (
-            <button
-              key={action.label}
-              className="btn btn-secondary"
-              onClick={() => setInput(action.prompt)}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
+      <div style={{ marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+        {quickActions.map(action => (
+          <button
+            key={action.label}
+            className="btn btn-secondary"
+            onClick={() => setInput(action.prompt)}
+            style={{ fontSize: '0.85rem' }}
+          >
+            {action.label}
+          </button>
+        ))}
       </div>
 
-      <div className="chat-container">
-        <div className="chat-messages">
+      <div className="card" style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 250px)', minHeight: '400px' }}>
+        <div style={{ flex: 1, overflow: 'auto', padding: '1rem' }}>
           {messages.map((msg, idx) => (
-            <div key={idx} className={`message ${msg.role}`}>
+            <div
+              key={idx}
+              style={{
+                marginBottom: '1rem',
+                padding: '0.75rem 1rem',
+                borderRadius: '8px',
+                background: msg.role === 'user' ? 'var(--primary)' : 'var(--bg)',
+                color: msg.role === 'user' ? 'white' : 'var(--text)',
+                whiteSpace: 'pre-wrap'
+              }}
+            >
               <strong>{msg.role === 'user' ? '你' : 'AI'}: </strong>
               {msg.content}
             </div>
           ))}
-          {loading && (
-            <div className="message assistant">
-              <em>思考中...</em>
-            </div>
-          )}
           <div ref={messagesEndRef} />
         </div>
-        <form className="chat-input" onSubmit={handleSubmit}>
+        
+        <form onSubmit={handleSubmit} style={{ display: 'flex', gap: '0.5rem', padding: '1rem', borderTop: '1px solid var(--border)' }}>
           <input
             type="text"
             value={input}
             onChange={e => setInput(e.target.value)}
             placeholder="输入你的问题..."
-            disabled={loading}
+            style={{ flex: 1, padding: '0.75rem', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--bg)', color: 'var(--text)' }}
           />
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            发送
-          </button>
+          <button type="submit" className="btn btn-primary">发送</button>
         </form>
       </div>
     </div>
