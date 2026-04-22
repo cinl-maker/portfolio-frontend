@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 function Profile() {
   const [profile, setProfile] = useState({
@@ -15,10 +17,40 @@ function Profile() {
 
   const [editing, setEditing] = useState(false)
   const [formData, setFormData] = useState(profile)
+  const [loading, setLoading] = useState(true)
 
-  const handleSave = () => {
-    setProfile(formData)
-    setEditing(false)
+  // 从后端加载数据
+  useEffect(() => {
+    fetch(`${API_BASE}/api/profile`)
+      .then(res => res.json())
+      .then(data => {
+        if (data && Object.keys(data).length > 0) {
+          setProfile(data)
+          setFormData(data)
+        }
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  // 保存到后端
+  const handleSave = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/profile`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      })
+      if (res.ok) {
+        setProfile(formData)
+        setEditing(false)
+      }
+    } catch (err) {
+      console.error('保存失败:', err)
+      // 即使 API 失败也保存到本地
+      setProfile(formData)
+      setEditing(false)
+    }
   }
 
   return (
