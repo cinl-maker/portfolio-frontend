@@ -2,13 +2,12 @@
 
 个人空间前端 - React + TypeScript + TailwindCSS
 
-## 功能
-- 👤 个人信息展示与管理
-- 📂 项目作品集
-- 📄 文档管理
-- 🤖 AI 助手对话
-- 📊 访客统计
-- 📝 简历上传
+## 功能页面
+- 🏠 Home - 首页
+- 👤 Profile - 个人信息
+- 📂 Projects - 项目展示
+- 📄 Documents - 文档管理
+- 🤖 AI Assistant - AI 助手
 
 ## 技术栈
 - React 18
