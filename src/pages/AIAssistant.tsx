@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 interface Message {
   role: 'user' | 'assistant'
@@ -11,6 +13,12 @@ function AIAssistant() {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  // 滚动到底部
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -22,17 +30,17 @@ function AIAssistant() {
     setLoading(true)
 
     try {
-      const response = await fetch('/api/ai/chat', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: userMessage })
       })
-      const data = await response.json()
-      setMessages(prev => [...prev, { role: 'assistant', content: data.reply }])
+      const data = await res.json()
+      setMessages(prev => [...prev, { role: 'assistant', content: data.response || '抱歉，我暂时无法回答这个问题。' }])
     } catch {
       setMessages(prev => [...prev, { 
         role: 'assistant', 
-        content: '抱歉，AI服务暂时不可用。请确保后端服务器正在运行，并配置了OPENAI_API_KEY环境变量。' 
+        content: '抱歉，AI服务暂时不可用。请确保后端服务器正在运行。' 
       }])
     } finally {
       setLoading(false)
@@ -78,6 +86,7 @@ function AIAssistant() {
               <em>思考中...</em>
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
         <form className="chat-input" onSubmit={handleSubmit}>
           <input
