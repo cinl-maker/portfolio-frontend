@@ -10,39 +10,27 @@ interface Document {
 }
 
 function Documents() {
-  const [docs, setDocs] = useState<Document[]>(storage.getDocuments())
+  const [docs, setDocs] = useState<Document[]>([])
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({ title: '', content: '', type: 'notes' })
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
 
   useEffect(() => {
-    setDocs(storage.getDocuments())
+    storage.getDocuments().then(d => setDocs(d))
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const doc = storage.addDocument(formData)
+    const doc = await storage.addDocument(formData)
     setDocs([doc, ...docs])
     setFormData({ title: '', content: '', type: 'notes' })
     setShowForm(false)
   }
 
-  const deleteDoc = (id: number) => {
-    storage.deleteDocument(id)
+  const deleteDoc = async (id: number) => {
+    await storage.deleteDocument(id)
     setDocs(docs.filter(d => d.id !== id))
     if (selectedDoc?.id === id) setSelectedDoc(null)
-  }
-
-  const exportData = () => storage.exportData()
-
-  const importData = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      storage.importData(file).then(() => {
-        setDocs(storage.getDocuments())
-        alert('导入成功！')
-      }).catch(err => alert(err.message))
-    }
   }
 
   const getDocIcon = (type: string) => {
@@ -59,10 +47,18 @@ function Documents() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h1>📄 文档管理</h1>
         <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={exportData}>📤 导出</button>
+          <button className="btn btn-secondary" onClick={() => storage.exportData()}>📤 导出</button>
           <label className="btn btn-secondary" style={{ cursor: 'pointer' }}>
             📥 导入
-            <input type="file" accept=".json" onChange={importData} style={{ display: 'none' }} />
+            <input type="file" accept=".json" onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) {
+                storage.importData(file).then(() => {
+                  storage.getDocuments().then(d => setDocs(d))
+                  alert('导入成功！')
+                }).catch(err => alert(err.message))
+              }
+            }} style={{ display: 'none' }} />
           </label>
           <button className="btn btn-primary" onClick={() => setShowForm(!showForm)}>
             {showForm ? '取消' : '+ 新建'}
@@ -137,7 +133,7 @@ function Documents() {
       )}
 
       {selectedDoc && (
-        <div className="card" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', zIndex: 1000 }}>
+        <div className="card" style={{ position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', width: '90%', maxWidth: '600px', maxHeight: '80vh', overflow: 'auto', zIndex: 1000, background: 'var(--card-bg)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3>{selectedDoc.title}</h3>
             <button className="btn btn-secondary" onClick={() => setSelectedDoc(null)}>关闭</button>
