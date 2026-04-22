@@ -1,70 +1,101 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 interface Document {
   id: number
   title: string
-  content: string
+  content?: string
+  summary?: string
+  file_type?: string
   type: string
-  createdAt: string
+  created_at?: string
+  createdAt?: string
 }
 
-const initialDocs: Document[] = [
-  {
-    id: 1,
-    title: '简历',
-    content: '全栈开发工程师，5年经验...',
-    type: 'resume',
-    createdAt: '2024-01-15'
-  },
-  {
-    id: 2,
-    title: '技术博客笔记',
-    content: '关于React性能优化的一些思考...',
-    type: 'notes',
-    createdAt: '2024-01-20'
-  }
-]
-
 function Documents() {
-  const [docs, setDocs] = useState<Document[]>(initialDocs)
+  const [docs, setDocs] = useState<Document[]>([])
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({ title: '', content: '', type: 'notes' })
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null)
   const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 从后端加载文档
+  useEffect(() => {
+    fetch(`${API_BASE}/api/documents`)
+      .then(res => res.json())
+      .then(data => {
+        setDocs(data.map((d: any) => ({
+          ...d,
+          type: d.file_type || 'notes',
+          createdAt: d.created_at?.split('T')[0]
+        })))
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  // 保存到后端
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const newDoc: Document = {
-      id: Date.now(),
-      title: formData.title,
-      content: formData.content,
-      type: formData.type,
-      createdAt: new Date().toISOString().split('T')[0]
+    try {
+      const res = await fetch(`${API_BASE}/api/documents`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          content: formData.content
+        })
+      })
+      const data = await res.json()
+      if (data.id) {
+        setDocs([{
+          id: data.id,
+          title: formData.title,
+          content: formData.content,
+          type: formData.type,
+          createdAt: new Date().toISOString().split('T')[0]
+        }, ...docs])
+      }
+    } catch {
+      // API 失败时添加到本地
+      setDocs([{
+        id: Date.now(),
+        title: formData.title,
+        content: formData.content,
+        type: formData.type,
+        createdAt: new Date().toISOString().split('T')[0]
+      }, ...docs])
     }
-    setDocs([...docs, newDoc])
     setFormData({ title: '', content: '', type: 'notes' })
     setShowForm(false)
   }
 
+  // AI 总结
   const summarizeDoc = async (doc: Document) => {
     try {
-      const response = await fetch('/api/ai/summarize', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'document',
-          title: doc.title,
-          content: doc.content
+        body: JSON.stringify({ 
+          message: `请总结这个文档：${doc.title}，内容：${doc.content}`,
+          context_type: 'document',
+          context_id: doc.id
         })
       })
-      const data = await response.json()
-      setAiSummary(data.summary)
+      const data = await res.json()
+      setAiSummary(data.response)
     } catch {
-      setAiSummary('AI服务暂时不可用，请检查后端配置。')
+      setAiSummary('AI服务暂时不可用。')
     }
   }
 
-  const deleteDoc = (id: number) => {
+  // 删除文档
+  const deleteDoc = async (id: number) => {
+    try {
+      await fetch(`${API_BASE}/api/documents/${id}`, { method: 'DELETE' })
+    } catch {}
     setDocs(docs.filter(d => d.id !== id))
     if (selectedDoc?.id === id) setSelectedDoc(null)
   }
@@ -74,6 +105,8 @@ function Documents() {
       case 'resume': return '📄'
       case 'notes': return '📝'
       case 'report': return '📊'
+      case 'md': return '📝'
+      case 'pdf': return '📕'
       default: return '📁'
     }
   }
@@ -143,29 +176,37 @@ function Documents() {
         </div>
       )}
 
-      <div className="doc-list">
-        {docs.map(doc => (
-          <div key={doc.id} className="doc-item" style={{ cursor: 'pointer' }}>
-            <span className="doc-icon">{getDocIcon(doc.type)}</span>
-            <div className="doc-info" style={{ flex: 1 }}>
-              <h4>{doc.title}</h4>
-              <p>{doc.content.substring(0, 100)}...</p>
-              <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{doc.createdAt}</p>
+      {loading ? (
+        <p>加载中...</p>
+      ) : docs.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
+          <p style={{ color: 'var(--text-muted)' }}>暂无文档，点击上方按钮创建</p>
+        </div>
+      ) : (
+        <div className="doc-list">
+          {docs.map(doc => (
+            <div key={doc.id} className="doc-item" style={{ cursor: 'pointer' }}>
+              <span className="doc-icon">{getDocIcon(doc.type)}</span>
+              <div className="doc-info" style={{ flex: 1 }}>
+                <h4>{doc.title}</h4>
+                <p>{doc.content?.substring(0, 100)}...</p>
+                <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{doc.createdAt || doc.created_at}</p>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <button className="btn btn-secondary" onClick={() => summarizeDoc(doc)}>
+                  🤖 总结
+                </button>
+                <button className="btn btn-secondary" onClick={() => setSelectedDoc(doc)}>
+                  查看
+                </button>
+                <button className="btn btn-secondary" onClick={() => deleteDoc(doc.id)} style={{ color: '#ef4444' }}>
+                  删除
+                </button>
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              <button className="btn btn-secondary" onClick={() => summarizeDoc(doc)}>
-                🤖 总结
-              </button>
-              <button className="btn btn-secondary" onClick={() => setSelectedDoc(doc)}>
-                查看
-              </button>
-              <button className="btn btn-secondary" onClick={() => deleteDoc(doc.id)} style={{ color: '#ef4444' }}>
-                删除
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {selectedDoc && (
         <div className="card" style={{ marginTop: '2rem' }}>
