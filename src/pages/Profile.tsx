@@ -1,186 +1,145 @@
 import { useState, useEffect } from 'react'
-
-const API_BASE = import.meta.env.VITE_API_URL || ''
+import { storage } from '../api/storage'
 
 function Profile() {
-  const [profile, setProfile] = useState({
-    name: '张三',
-    title: '全栈开发工程师',
-    email: 'zhangsan@example.com',
-    phone: '138-0000-0000',
-    location: '北京市',
-    bio: '热爱技术，专注于构建高质量的Web应用。拥有5年前后端开发经验。',
-    skills: ['React', 'TypeScript', 'Node.js', 'Python', 'PostgreSQL', 'Docker'],
-    experience: '5年',
-    education: '计算机科学学士'
-  })
-
+  const [profile, setProfile] = useState(storage.getProfile())
   const [editing, setEditing] = useState(false)
   const [formData, setFormData] = useState(profile)
-  const [loading, setLoading] = useState(true)
 
-  // 从后端加载数据
   useEffect(() => {
-    fetch(`${API_BASE}/api/profile`)
-      .then(res => res.json())
-      .then(data => {
-        if (data && Object.keys(data).length > 0) {
-          setProfile(data)
-          setFormData(data)
-        }
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+    setProfile(storage.getProfile())
   }, [])
 
-  // 保存到后端
-  const handleSave = async () => {
-    try {
-      const res = await fetch(`${API_BASE}/api/profile`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-      if (res.ok) {
-        setProfile(formData)
-        setEditing(false)
-      }
-    } catch (err) {
-      console.error('保存失败:', err)
-      // 即使 API 失败也保存到本地
-      setProfile(formData)
-      setEditing(false)
-    }
+  const handleSave = () => {
+    storage.setProfile(formData)
+    setProfile(formData)
+    setEditing(false)
+  }
+
+  const getSkillsArray = (skills: any) => {
+    if (typeof skills === 'string') return skills.split(',').map((s: string) => s.trim())
+    if (Array.isArray(skills)) return skills
+    return []
   }
 
   return (
     <div className="container page">
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <h1>个人资料</h1>
-        <button 
-          className={`btn ${editing ? 'btn-primary' : 'btn-secondary'}`}
-          onClick={() => editing ? handleSave() : setEditing(true)}
-        >
-          {editing ? '保存' : '编辑'}
+        <h1>个人信息</h1>
+        <button className="btn btn-primary" onClick={() => setEditing(!editing)}>
+          {editing ? '取消' : '编辑'}
         </button>
       </div>
 
-      <div className="card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '2rem', marginBottom: '2rem' }}>
-          <div style={{
-            width: '120px',
-            height: '120px',
-            borderRadius: '50%',
-            background: 'linear-gradient(135deg, var(--primary), var(--secondary))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '3rem'
-          }}>
-            {profile.name[0]}
+      {editing ? (
+        <div className="card">
+          <h3 style={{ marginBottom: '1.5rem' }}>编辑资料</h3>
+          <div className="form-group">
+            <label>姓名</label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={e => setFormData({ ...formData, name: e.target.value })}
+            />
           </div>
-          <div>
-            {editing ? (
-              <>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })}
-                  style={{ fontSize: '1.5rem', fontWeight: 'bold', marginBottom: '0.5rem' }}
-                />
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={e => setFormData({ ...formData, title: e.target.value })}
-                  style={{ fontSize: '1rem', color: 'var(--text-muted)' }}
-                />
-              </>
-            ) : (
-              <>
-                <h2>{profile.name}</h2>
-                <p style={{ color: 'var(--text-muted)' }}>{profile.title}</p>
-              </>
-            )}
+          <div className="form-group">
+            <label>职位</label>
+            <input
+              type="text"
+              value={formData.title}
+              onChange={e => setFormData({ ...formData, title: e.target.value })}
+            />
           </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
           <div className="form-group">
             <label>邮箱</label>
-            {editing ? (
-              <input
-                type="email"
-                value={formData.email}
-                onChange={e => setFormData({ ...formData, email: e.target.value })}
-              />
-            ) : (
-              <p>{profile.email}</p>
-            )}
+            <input
+              type="email"
+              value={formData.email}
+              onChange={e => setFormData({ ...formData, email: e.target.value })}
+            />
           </div>
           <div className="form-group">
             <label>电话</label>
-            {editing ? (
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={e => setFormData({ ...formData, phone: e.target.value })}
-              />
-            ) : (
-              <p>{profile.phone}</p>
-            )}
+            <input
+              type="tel"
+              value={formData.phone}
+              onChange={e => setFormData({ ...formData, phone: e.target.value })}
+            />
           </div>
           <div className="form-group">
-            <label>所在地</label>
-            {editing ? (
-              <input
-                type="text"
-                value={formData.location}
-                onChange={e => setFormData({ ...formData, location: e.target.value })}
-              />
-            ) : (
-              <p>{profile.location}</p>
-            )}
+            <label>地址</label>
+            <input
+              type="text"
+              value={formData.location}
+              onChange={e => setFormData({ ...formData, location: e.target.value })}
+            />
           </div>
           <div className="form-group">
-            <label>工作年限</label>
-            <p>{profile.experience}</p>
-          </div>
-          <div className="form-group">
-            <label>学历</label>
-            <p>{profile.education}</p>
-          </div>
-        </div>
-
-        <div className="form-group" style={{ marginTop: '1.5rem' }}>
-          <label>个人简介</label>
-          {editing ? (
+            <label>个人简介</label>
             <textarea
               value={formData.bio}
               onChange={e => setFormData({ ...formData, bio: e.target.value })}
+              rows={4}
             />
-          ) : (
-            <p>{profile.bio}</p>
-          )}
-        </div>
-
-        <div style={{ marginTop: '1.5rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.75rem' }}>技能</label>
-          {editing ? (
+          </div>
+          <div className="form-group">
+            <label>技能 (用逗号分隔)</label>
             <input
               type="text"
-              value={formData.skills.join(', ')}
+              value={typeof formData.skills === 'string' ? formData.skills : formData.skills?.join(', ')}
               onChange={e => setFormData({ ...formData, skills: e.target.value.split(',').map(s => s.trim()) })}
-              placeholder="用逗号分隔技能"
             />
-          ) : (
-            <div className="tags">
-              {profile.skills.map(skill => (
-                <span key={skill} className="tag">{skill}</span>
-              ))}
+          </div>
+          <button className="btn btn-primary" onClick={handleSave}>
+            保存
+          </button>
+        </div>
+      ) : (
+        <div className="card">
+          <div style={{ display: 'flex', gap: '2rem', alignItems: 'flex-start' }}>
+            <div style={{ fontSize: '4rem' }}>👤</div>
+            <div style={{ flex: 1 }}>
+              <h2>{profile.name}</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>{profile.title}</p>
+              <div style={{ marginTop: '1rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.9rem' }}>
+                {profile.email && <span>📧 {profile.email}</span>}
+                {profile.phone && <span>📱 {profile.phone}</span>}
+                {profile.location && <span>📍 {profile.location}</span>}
+              </div>
+            </div>
+          </div>
+          
+          {profile.bio && (
+            <div style={{ marginTop: '2rem' }}>
+              <h3>关于我</h3>
+              <p>{profile.bio}</p>
             </div>
           )}
+          
+          {getSkillsArray(profile.skills).length > 0 && (
+            <div style={{ marginTop: '2rem' }}>
+              <h3>技能</h3>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.5rem' }}>
+                {getSkillsArray(profile.skills).map((skill: string, i: number) => (
+                  <span key={i} style={{
+                    padding: '0.25rem 0.75rem',
+                    background: 'var(--bg)',
+                    borderRadius: '1rem',
+                    fontSize: '0.85rem'
+                  }}>
+                    {skill}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          
+          <div style={{ marginTop: '2rem', display: 'flex', gap: '2rem' }}>
+            {profile.experience && <div><strong>经验:</strong> {profile.experience}</div>}
+            {profile.education && <div><strong>学历:</strong> {profile.education}</div>}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
