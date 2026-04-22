@@ -2,16 +2,28 @@ import { useState, useEffect } from 'react'
 import { storage } from '../api/storage'
 
 function Profile() {
-  const [profile, setProfile] = useState(storage.getProfile())
+  const [profile, setProfile] = useState({
+    name: '张三',
+    title: '全栈开发工程师',
+    email: 'zhangsan@example.com',
+    phone: '138-0000-0000',
+    location: '北京市',
+    bio: '热爱技术，专注于构建高质量的Web应用。',
+    skills: ['React', 'TypeScript', 'Node.js'],
+    experience: '5年',
+    education: '计算机科学学士'
+  })
   const [editing, setEditing] = useState(false)
   const [formData, setFormData] = useState(profile)
 
   useEffect(() => {
-    setProfile(storage.getProfile())
+    storage.getProfile().then(p => {
+      if (p && Object.keys(p).length > 0) setProfile(p)
+    })
   }, [])
 
-  const handleSave = () => {
-    storage.setProfile(formData)
+  const handleSave = async () => {
+    await storage.setProfile(formData)
     setProfile(formData)
     setEditing(false)
   }
