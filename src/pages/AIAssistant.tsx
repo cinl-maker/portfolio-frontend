@@ -17,14 +17,14 @@ function AIAssistant() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const generateAIResponse = (userMessage: string) => {
+  const generateAIResponse = async (userMessage: string) => {
     const msg = userMessage.toLowerCase()
     
     if (msg.includes('项目') || msg.includes('总结')) {
-      const projects = storage.getProjects()
+      const projects = await storage.getProjects()
       if (projects.length > 0) {
         const summary = projects.map(p => 
-          `• ${p.title}: ${p.description} (${p.tech.join(', ')})`
+          `• ${p.title}: ${p.description} (${p.tech?.join(', ')})`
         ).join('\n')
         return `📊 你的项目经验：\n\n${summary}\n\n💡 建议：可以突出项目的技术难点和业务价值，展示具体的成果指标。`
       }
@@ -36,7 +36,7 @@ function AIAssistant() {
     }
     
     if (msg.includes('面试')) {
-      return `🎯 常见面试问题预测：\n\n**技术面：**\n• 自我介绍\n• 项目中最有挑战的部分\n• 技术选型的原因\n• 如何解决技术难题\n\n**HR面：**\n• 为什么离职\n• 职业规划\n• 期望薪资\n• 优势/劣势\n\n需要我模拟某个问题的回答吗？`
+      return `🎯 常见面试问题预测：\n\n**技术面：**\n• 自我介绍\n• 项目中最有挑战的部分\n• 技术选型的原因\n• 如何解决技术难题\n\n**HR面：**\n• 为什么离职\n• 职业规划\n• 期望薪资\n\n需要我模拟某个问题的回答吗？`
     }
     
     if (msg.includes('职业') || msg.includes('发展')) {
@@ -46,21 +46,17 @@ function AIAssistant() {
     return `收到你的问题：${userMessage}\n\n💡 提示：可以问我关于"项目总结"、"简历优化"、"面试准备"、"职业发展"等话题，我会给你专业建议！`
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!input.trim()) return
 
     const userMessage = input.trim()
     setInput('')
     
-    // 添加用户消息
     setMessages(prev => [...prev, { role: 'user', content: userMessage }])
     
-    // 模拟 AI 思考
-    setTimeout(() => {
-      const response = generateAIResponse(userMessage)
-      setMessages(prev => [...prev, { role: 'assistant', content: response }])
-    }, 500)
+    const response = await generateAIResponse(userMessage)
+    setMessages(prev => [...prev, { role: 'assistant', content: response }])
   }
 
   const quickActions = [
