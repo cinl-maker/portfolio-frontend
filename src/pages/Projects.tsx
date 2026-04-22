@@ -12,42 +12,40 @@ interface Project {
 }
 
 function Projects() {
-  const [projects, setProjects] = useState<Project[]>(storage.getProjects())
+  const [projects, setProjects] = useState<Project[]>([])
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({ title: '', description: '', tech: '' })
   const [aiSummary, setAiSummary] = useState<string | null>(null)
 
   useEffect(() => {
-    setProjects(storage.getProjects())
+    storage.getProjects().then(p => setProjects(p))
   }, [])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     const newProject: Project = {
       id: Date.now(),
       title: formData.title,
       description: formData.description,
       tech: formData.tech.split(',').map(t => t.trim()),
-      status: '规划中',
-      github_url: '',
-      demo_url: ''
+      status: '规划中'
     }
-    storage.addProject(newProject)
+    await storage.addProject(newProject)
     setProjects([...projects, newProject])
     setFormData({ title: '', description: '', tech: '' })
     setShowForm(false)
   }
 
-  const getAISummary = async (project: Project) => {
+  const getAISummary = (project: Project) => {
     const summary = `📊 项目分析：${project.title}\n\n` +
       `技术栈：${project.tech.join(', ')}\n\n` +
       `描述：${project.description}\n\n` +
-      `建议：可以突出项目的技术难点和业务价值，展示具体的成果指标（如性能提升、用户增长等）。`;
+      `建议：\n• 突出项目的技术难点\n• 展示业务价值\n• 量化成果指标（如性能提升 X%）`;
     setAiSummary(summary)
   }
 
-  const deleteProject = (id: number) => {
-    storage.deleteProject(id)
+  const deleteProject = async (id: number) => {
+    await storage.deleteProject(id)
     setProjects(projects.filter(p => p.id !== id))
   }
 
@@ -155,7 +153,7 @@ function Projects() {
         ))}
       </div>
 
-      {projects.length === 0 && (
+      {projects.length === 0 && !showForm && (
         <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
           <p style={{ color: 'var(--text-muted)' }}>暂无项目，点击上方按钮添加</p>
         </div>
