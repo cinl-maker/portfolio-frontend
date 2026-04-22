@@ -1,65 +1,80 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+const API_BASE = import.meta.env.VITE_API_URL || ''
 
 interface Project {
   id: number
   title: string
   description: string
-  tech: string[]
-  status: string
+  tech_stack?: string
+  tech?: string[]
+  status?: string
   link?: string
+  github_url?: string
+  demo_url?: string
 }
 
-const initialProjects: Project[] = [
-  {
-    id: 1,
-    title: '企业管理系统',
-    description: '基于React和Node.js的企业资源规划系统',
-    tech: ['React', 'Node.js', 'PostgreSQL'],
-    status: '已完成'
-  },
-  {
-    id: 2,
-    title: '在线教育平台',
-    description: '支持直播课程和点播的在线学习系统',
-    tech: ['Vue3', 'Spring Boot', 'Redis'],
-    status: '进行中'
-  }
-]
-
 function Projects() {
-  const [projects, setProjects] = useState<Project[]>(initialProjects)
+  const [projects, setProjects] = useState<Project[]>([])
   const [showForm, setShowForm] = useState(false)
   const [formData, setFormData] = useState({ title: '', description: '', tech: '' })
   const [aiSummary, setAiSummary] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // 从后端加载项目
+  useEffect(() => {
+    fetch(`${API_BASE}/api/projects`)
+      .then(res => res.json())
+      .then(data => {
+        const mapped = data.map((p: any) => ({
+          ...p,
+          tech: p.tech_stack ? p.tech_stack.split(',').map((t: string) => t.trim()) : p.tech || [],
+          status: p.status || '已完成'
+        }))
+        setProjects(mapped)
+        setLoading(false)
+      })
+      .catch(() => setLoading(false))
+  }, [])
+
+  // 保存到后端
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const newProject: Project = {
-      id: Date.now(),
+    const newProject = {
       title: formData.title,
       description: formData.description,
-      tech: formData.tech.split(',').map(t => t.trim()),
-      status: '规划中'
+      tech_stack: formData.tech
     }
-    setProjects([...projects, newProject])
+    try {
+      const res = await fetch(`${API_BASE}/api/projects`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newProject)
+      })
+      const data = await res.json()
+      if (data.id) {
+        setProjects([...projects, { ...newProject, id: data.id, tech: formData.tech.split(',').map(t => t.trim()), status: '规划中' }])
+      }
+    } catch {
+      // API 失败时添加到本地
+      setProjects([...projects, { id: Date.now(), title: formData.title, description: formData.description, tech: formData.tech.split(',').map(t => t.trim()), status: '规划中' }])
+    }
     setFormData({ title: '', description: '', tech: '' })
     setShowForm(false)
   }
 
+  // AI 分析
   const getAISummary = async (project: Project) => {
     try {
-      const response = await fetch('/api/ai/summarize', {
+      const res = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'project',
-          title: project.title,
-          description: project.description,
-          tech: project.tech
+        body: JSON.stringify({ 
+          message: `请总结这个项目：${project.title}，${project.description}，技术栈：${project.tech_stack || project.tech?.join(', ')}`
         })
       })
-      const data = await response.json()
-      setAiSummary(data.summary)
+      const data = await res.json()
+      setAiSummary(data.response)
     } catch {
       setAiSummary('AI服务暂时不可用，请检查后端配置。')
     }
